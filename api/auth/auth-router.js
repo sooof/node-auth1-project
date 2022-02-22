@@ -5,7 +5,7 @@ const {checkUsernameFree,
   checkUsernameExists,
   checkPasswordLength
 } = require('./auth-middleware')
-const Users = require('../users/users-model')
+const User = require('../users/users-model')
 const bcrypt = require('bcryptjs')
 /**
   1 [POST] /api/auth/register { "username": "sue", "password": "1234" }
@@ -29,9 +29,21 @@ const bcrypt = require('bcryptjs')
     "message": "Password must be longer than 3 chars"
   }
  */
- // http post  :9000/api/auth/register
+
+ // http post :9000/api/auth/register username=aaa password=1234 -v
+ // TEST ERR : http post  :9000/api/auth/register
+ // TEST ERR http post :9000/api/auth/register username=aaa  -v
+ // TEST ERR http post :9000/api/auth/register username=bob  password=1234 -v
 router.post('/register',checkPasswordLength, checkUsernameFree, async(req, res, next)=>{
-  res.json('[POST] /api/auth/register')
+  // res.json('[POST] /api/auth/register')
+  try{
+    const {username, password} =req.body
+    const hash = bcrypt.hashSync(password, 8)
+    const user = await User.add({username, password: hash})
+    res.status(201).json(user)
+  }catch(err){
+    next(err)
+  }
 })
 
 /**
@@ -50,9 +62,24 @@ router.post('/register',checkPasswordLength, checkUsernameFree, async(req, res, 
   }
  */
   // http post  :9000/api/auth/login
+   // http post :9000/api/auth/login username=aaa password=1234 -v
   // TEST ERR: http   :9000/api/auth/login username=bonnnxxx password=1234
   router.post('/login',checkUsernameExists, (req, res, next)=>{
-    res.json('[POST] /api/auth/login')
+    // res.json('[POST] /api/auth/login')
+    try{
+      const {password} = req.body
+      const validPassword = bcrypt.compareSync(password, req.user.password)
+      console.log("data password =", req.user.password)
+      console.log("body password = ", password)
+      console.log(validPassword)
+      if(!validPassword){
+        return next({ status: 401, message: "Invalid credentials"})
+      }else{
+        res.json({ message: `Welcome ${req.user.username}!`})
+      }
+    }catch(err){
+      next(err)
+    }
   })
 
 /**
